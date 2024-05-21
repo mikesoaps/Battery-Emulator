@@ -42,8 +42,15 @@ static uint8_t KIA_7E4_COUNTER = 0x01;
 static int8_t temperature_water_inlet = 0;
 static int8_t powerRelayTemperature = 0;
 static int8_t heatertemp = 0;
+static uint8_t startup_7EC_ack = 0;
+static bool startup_completed = false;
 
 CANFDMessage EGMP_7E4;
+CANFDMessage EGMP_7E4_startup;
+CANFDMessage EGMP_7E4_startup_2;
+CANFDMessage EGMP_7E4_startup_3;
+CANFDMessage EGMP_7E4_startup_4;
+CANFDMessage EGMP_7E4_startup_5;
 CANFDMessage EGMP_7E4_ack;
 
 void set_cell_voltages(CANFDMessage frame, int start, int length, int startCell) {
@@ -201,8 +208,16 @@ void receive_canfd_battery(CANFDMessage frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (frame.id) {
     case 0x7EC:
+      startup_7EC_ack++;
+
       // print_canfd_frame(frame);
       switch (frame.data[0]) {
+        case 0x02:
+          //TODO: Startup, add
+          break;
+        case 0x04:
+          //TODO: Startup, add
+          break;
         case 0x10:  //"PID Header"
           // Serial.println ("Send ack");
           poll_data_pid = frame.data[4];
@@ -398,12 +413,38 @@ void send_can_battery() {
       datalayer.system.status.battery_allows_contactor_closing = false;
     }
     //  Section end
-    EGMP_7E4.data[3] = KIA_7E4_COUNTER;
-    send_canfd_frame(EGMP_7E4);
 
-    KIA_7E4_COUNTER++;
-    if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
-      KIA_7E4_COUNTER = 0x01;
+    if (!startup_completed) {
+      switch (startup_7EC_ack) {  //Handle startup PID poll
+        case 0:
+          send_canfd_frame(EGMP_7E4_startup);  //Poll PID 02 3E, Setup
+          break;
+        case 1:
+          send_canfd_frame(EGMP_7E4_startup_2);  //SET PID 04 2F F0 32 03
+          break;
+        case 2:
+          send_canfd_frame(EGMP_7E4_startup_3);  //SET PID 04 2F F0 38 03
+          break;
+        case 3:
+          send_canfd_frame(EGMP_7E4_startup_4);  //SET PID 04 2F F0 30 03
+          break;
+        case 4:
+          send_canfd_frame(EGMP_7E4_startup_5);  //SET PID 04 2F F0 33 03
+          startup_completed = true;
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (startup_completed) {  //Proceed with normal PID polling
+      EGMP_7E4.data[3] = KIA_7E4_COUNTER;
+      send_canfd_frame(EGMP_7E4);
+
+      KIA_7E4_COUNTER++;
+      if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
+        KIA_7E4_COUNTER = 0x01;
+      }
     }
   }
 }
@@ -425,6 +466,36 @@ void setup_battery(void) {  // Performs one time setup at startup
   EGMP_7E4.len = 8;
   uint8_t dataEGMP_7E4[8] = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00};  //Poll PID 03 22 01 01
   memcpy(EGMP_7E4.data, dataEGMP_7E4, sizeof(dataEGMP_7E4));
+
+  EGMP_7E4_startup.id = 0x7E4;
+  EGMP_7E4_startup.ext = false;
+  EGMP_7E4_startup.len = 8;
+  uint8_t dataEGMP_7E4_startup[8] = {0x02, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //Poll PID 02 3E, Setup
+  memcpy(EGMP_7E4_startup.data, dataEGMP_7E4_startup, sizeof(dataEGMP_7E4_startup));
+
+  EGMP_7E4_startup_2.id = 0x7E4;
+  EGMP_7E4_startup_2.ext = false;
+  EGMP_7E4_startup_2.len = 8;
+  uint8_t dataEGMP_7E4_startup_2[8] = {0x04, 0x2F, 0xF0, 0x32, 0x03, 0x00, 0x00, 0x00};  //SET PID 04 2F F0 32 03
+  memcpy(EGMP_7E4_startup_2.data, dataEGMP_7E4_startup_2, sizeof(dataEGMP_7E4_startup_2));
+
+  EGMP_7E4_startup_3.id = 0x7E4;
+  EGMP_7E4_startup_3.ext = false;
+  EGMP_7E4_startup_3.len = 8;
+  uint8_t dataEGMP_7E4_startup_3[8] = {0x04, 0x2F, 0xF0, 0x38, 0x03, 0x00, 0x00, 0x00};  //SET PID 04 2F F0 38 03
+  memcpy(EGMP_7E4_startup_3.data, dataEGMP_7E4_startup_3, sizeof(dataEGMP_7E4_startup_3));
+
+  EGMP_7E4_startup_4.id = 0x7E4;
+  EGMP_7E4_startup_4.ext = false;
+  EGMP_7E4_startup_4.len = 8;
+  uint8_t dataEGMP_7E4_startup_4[8] = {0x04, 0x2F, 0xF0, 0x30, 0x03, 0x00, 0x00, 0x00};  //SET PID 04 2F F0 30 03
+  memcpy(EGMP_7E4_startup_4.data, dataEGMP_7E4_startup_4, sizeof(dataEGMP_7E4_startup_4));
+
+  EGMP_7E4_startup_5.id = 0x7E4;
+  EGMP_7E4_startup_5.ext = false;
+  EGMP_7E4_startup_5.len = 8;
+  uint8_t dataEGMP_7E4_startup_5[8] = {0x04, 0x2F, 0xF0, 0x33, 0x03, 0x00, 0x00, 0x00};  //SET PID 04 2F F0 33 03
+  memcpy(EGMP_7E4_startup_5.data, dataEGMP_7E4_startup_5, sizeof(dataEGMP_7E4_startup_5));
 
   EGMP_7E4_ack.id = 0x7E4;
   EGMP_7E4_ack.ext = false;
