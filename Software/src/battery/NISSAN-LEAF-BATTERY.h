@@ -3,13 +3,13 @@
 
 #include "../include.h"
 
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "../lib/ESP32-TWAI-CAN/ESP32-TWAI-CAN.hpp"
 
 #define BATTERY_SELECTED
 #define MAX_CELL_DEVIATION_MV 500
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
-bool is_message_corrupt(CAN_frame_t rx_frame);
+bool is_message_corrupt(twai_message_t rx_frame);
 void setup_battery(void);
 
 #endif

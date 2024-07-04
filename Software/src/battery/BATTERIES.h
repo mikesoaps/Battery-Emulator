@@ -74,8 +74,8 @@
 #ifdef SERIAL_LINK_RECEIVER  // The serial thing does its thing
 void receive_can_battery();
 #else
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"  // This include is annoying, consider defining a frame type in types.h
-void receive_can_battery(CAN_frame_t rx_frame);
+#include "../lib/ESP32-TWAI-CAN/ESP32-TWAI-CAN.hpp" // This include is annoying, consider defining a frame type in types.h
+void receive_can_battery(twai_message_t rx_frame);
 #endif
 #ifdef CAN_FD
 void receive_canfd_battery(CANFDMessage frame);

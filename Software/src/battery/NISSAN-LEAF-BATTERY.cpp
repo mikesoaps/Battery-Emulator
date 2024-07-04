@@ -6,8 +6,7 @@
 #endif
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "../lib/ESP32-TWAI-CAN/ESP32-TWAI-CAN.hpp"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
@@ -18,50 +17,37 @@ static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
 static bool can_bus_alive = false;
 
-CAN_frame_t LEAF_1F2 = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x1F2,
-                        .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
-CAN_frame_t LEAF_50B = {.FIR = {.B =
-                                    {
-                                        .DLC = 7,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x50B,
-                        .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
-CAN_frame_t LEAF_50C = {.FIR = {.B =
-                                    {
-                                        .DLC = 6,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x50C,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t LEAF_1D4 = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x1D4,
-                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+twai_message_t LEAF_1F2 = {
+    .identifier = 0x1F2, 
+    .data_length_code = 8,
+    .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F},
+};
+twai_message_t LEAF_50B = {
+    .identifier = 0x50B, 
+    .data_length_code = 7,
+    .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00},
+};
+twai_message_t LEAF_50C = {
+    .identifier = 0x50C, 
+    .data_length_code = 6,
+    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+twai_message_t LEAF_1D4 = {
+    .identifier = 0x1D4, 
+    .data_length_code = 8,
+    .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44},
+};
 //These CAN messages need to be sent towards the battery to keep it alive
-
-CAN_frame_t LEAF_GROUP_REQUEST = {.FIR = {.B =
-                                              {
-                                                  .DLC = 8,
-                                                  .FF = CAN_frame_std,
-                                              }},
-                                  .MsgID = 0x79B,
-                                  .data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
-const CAN_frame_t LEAF_NEXT_LINE_REQUEST = {.FIR = {.B =
-                                                        {
-                                                            .DLC = 8,
-                                                            .FF = CAN_frame_std,
-                                                        }},
-                                            .MsgID = 0x79B,
-                                            .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+twai_message_t LEAF_GROUP_REQUEST = {
+    .identifier = 0x79B, 
+    .data_length_code = 8,
+    .data = {2, 0x21, 1, 0, 0, 0, 0, 0},
+};
+twai_message_t LEAF_NEXT_LINE_REQUEST = {
+    .identifier = 0x79B, 
+    .data_length_code = 8,
+    .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+};
 // The Li-ion battery controller only accepts a multi-message query. In fact, the LBC transmits many
 // groups: the first one contains lots of High Voltage battery data as SOC, currents, and voltage; the second
 // replies with all the battery’s cells voltages in millivolt, the third and the fifth one are still unknown, the
@@ -300,72 +286,72 @@ void update_values_battery() { /* This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_battery(twai_message_t rx_frame) {
+  switch (rx_frame.identifier) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
-      LB_Current2 = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
+      LB_Current2 = (rx_frame.data[0] << 3) | (rx_frame.data[1] & 0xe0) >> 5;
       if (LB_Current2 & 0x0400) {
         // negative so extend the sign bit
         LB_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      LB_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      LB_Total_Voltage2 = ((rx_frame.data[2] << 2) | (rx_frame.data[3] & 0xc0) >> 6);  //0.5V/bit
 
       //Collect various data from the BMS
-      LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
-      LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
-      LB_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
+      LB_Relay_Cut_Request = ((rx_frame.data[1] & 0x18) >> 3);
+      LB_Failsafe_Status = (rx_frame.data[1] & 0x07);
+      LB_MainRelayOn_flag = (bool)((rx_frame.data[3] & 0x20) >> 5);
       if (LB_MainRelayOn_flag) {
         datalayer.system.status.battery_allows_contactor_closing = true;
       } else {
         datalayer.system.status.battery_allows_contactor_closing = false;
       }
-      LB_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
-      LB_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
+      LB_Full_CHARGE_flag = (bool)((rx_frame.data[3] & 0x10) >> 4);
+      LB_Interlock = (bool)((rx_frame.data[3] & 0x08) >> 3);
       break;
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
-      LB_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
-      LB_Charge_Power_Limit = (((rx_frame.data.u8[1] & 0x3F) << 4 | rx_frame.data.u8[2] >> 4) / 4.0);
-      LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
+      LB_Discharge_Power_Limit = ((rx_frame.data[0] << 2 | rx_frame.data[1] >> 6) / 4.0);
+      LB_Charge_Power_Limit = (((rx_frame.data[1] & 0x3F) << 4 | rx_frame.data[2] >> 4) / 4.0);
+      LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data[2] & 0x0F) << 6 | rx_frame.data[3] >> 2) / 10.0) - 10);
       break;
     case 0x55B:
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
-      LB_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
+      LB_TEMP = (rx_frame.data[0] << 2 | rx_frame.data[1] >> 6);
       if (LB_TEMP != 0x3ff) {  //3FF is unavailable value
         LB_SOC = LB_TEMP;
       }
-      LB_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
+      LB_Capacity_Empty = (bool)((rx_frame.data[6] & 0x80) >> 7);
       break;
     case 0x5BC:
       can_bus_alive = true;
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
 
-      LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
+      LB_MAX = ((rx_frame.data[5] & 0x10) >> 4);
       if (LB_MAX) {
-        LB_Max_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
+        LB_Max_GIDS = (rx_frame.data[0] << 2) | ((rx_frame.data[1] & 0xC0) >> 6);
         //Max gids active, do nothing
         //Only the 30/40/62kWh packs have this mux
       } else {  //Normal current GIDS value is transmitted
-        LB_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
+        LB_GIDS = (rx_frame.data[0] << 2) | ((rx_frame.data[1] & 0xC0) >> 6);
         LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
       }
 
       if (LEAF_Battery_Type == ZE0_BATTERY) {
-        LB_AverageTemperature = (rx_frame.data.u8[3] - 40);  //In celcius, -40 to +55
+        LB_AverageTemperature = (rx_frame.data[3] - 40);  //In celcius, -40 to +55
       }
 
-      LB_TEMP = (rx_frame.data.u8[4] >> 1);
+      LB_TEMP = (rx_frame.data[4] >> 1);
       if (LB_TEMP != 0) {
         LB_StateOfHealth = LB_TEMP;  //Collect state of health from battery
       }
@@ -373,20 +359,20 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x5C0:
       //This temperature only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
       if (LEAF_Battery_Type == AZE0_BATTERY) {
-        if ((rx_frame.data.u8[0] >> 6) ==
+        if ((rx_frame.data[0] >> 6) ==
             1) {  // Battery MAX temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
-          LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
+          LB_HistData_Temperature_MAX = ((rx_frame.data[2] / 2) - 40);
         }
-        if ((rx_frame.data.u8[0] >> 6) ==
+        if ((rx_frame.data[0] >> 6) ==
             3) {  // Battery MIN temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
-          LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
+          LB_HistData_Temperature_MIN = ((rx_frame.data[2] / 2) - 40);
         }
       }
 
-      LB_HeatExist = (rx_frame.data.u8[4] & 0x01);
-      LB_Heating_Stop = ((rx_frame.data.u8[0] & 0x10) >> 4);
-      LB_Heating_Start = ((rx_frame.data.u8[0] & 0x20) >> 5);
-      Batt_Heater_Mail_Send_Request = (rx_frame.data.u8[1] & 0x01);
+      LB_HeatExist = (rx_frame.data[4] & 0x01);
+      LB_Heating_Stop = ((rx_frame.data[0] & 0x10) >> 4);
+      LB_Heating_Start = ((rx_frame.data[0] & 0x20) >> 5);
+      Batt_Heater_Mail_Send_Request = (rx_frame.data[1] & 0x01);
 
       break;
     case 0x59E:
@@ -407,8 +393,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x7BB:
       //First check which group data we are getting
-      if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
-        group_7bb = rx_frame.data.u8[3];
+      if (rx_frame.data[0] == 0x10) {  //First message of a group
+        group_7bb = rx_frame.data[3];
         if (group_7bb != 1 && group_7bb != 2 && group_7bb != 4) {  //We are only interested in groups 1,2 and 4
           break;
         }
@@ -418,35 +404,35 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         break;
       }
 
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
+      ESP32Can.writeFrame(LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
 
       if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
-        if (rx_frame.data.u8[0] == 0x10) {  //First frame
+        if (rx_frame.data[0] == 0x10) {  //First frame
           //High precision Battery_current_1 resides here, but has been deemed unusable by 62kWh owners
         }
-        if (rx_frame.data.u8[0] == 0x21) {  //Second frame
+        if (rx_frame.data[0] == 0x21) {  //Second frame
           //High precision Battery_current_2 resides here, but has been deemed unusable by 62kWh owners
         }
 
-        if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame
-          insulation = (uint16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+        if (rx_frame.data[0] == 0x23) {  // Fourth frame
+          insulation = (uint16_t)((rx_frame.data[5] << 8) | rx_frame.data[6]);
         }
 
-        if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
-          HX = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 102.4;
+        if (rx_frame.data[0] == 0x24) {  // Fifth frame
+          HX = (uint16_t)((rx_frame.data[4] << 8) | rx_frame.data[5]) / 102.4;
         }
       }
 
       if (group_7bb == 2)  //Cell Voltages
       {
-        if (rx_frame.data.u8[0] == 0x10) {  //first frame is anomalous
+        if (rx_frame.data[0] == 0x10) {  //first frame is anomalous
           battery_request_idx = 0;
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          cell_voltages[battery_request_idx++] = (rx_frame.data[4] << 8) | rx_frame.data[5];
+          cell_voltages[battery_request_idx++] = (rx_frame.data[6] << 8) | rx_frame.data[7];
           break;
         }
-        if (rx_frame.data.u8[6] == 0xFF && rx_frame.data.u8[0] == 0x2C) {  //Last frame
+        if (rx_frame.data[6] == 0xFF && rx_frame.data[0] == 0x2C) {  //Last frame
           //Last frame does not contain any cell data, calculate the result
 
           //Map all cell voltages to the global array
@@ -474,30 +460,30 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           break;
         }
 
-        if ((rx_frame.data.u8[0] % 2) == 0) {  //even frames
-          cell_voltages[battery_request_idx++] |= rx_frame.data.u8[1];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        if ((rx_frame.data[0] % 2) == 0) {  //even frames
+          cell_voltages[battery_request_idx++] |= rx_frame.data[1];
+          cell_voltages[battery_request_idx++] = (rx_frame.data[2] << 8) | rx_frame.data[3];
+          cell_voltages[battery_request_idx++] = (rx_frame.data[4] << 8) | rx_frame.data[5];
+          cell_voltages[battery_request_idx++] = (rx_frame.data[6] << 8) | rx_frame.data[7];
         } else {  //odd frames
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-          cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
+          cell_voltages[battery_request_idx++] = (rx_frame.data[1] << 8) | rx_frame.data[2];
+          cell_voltages[battery_request_idx++] = (rx_frame.data[3] << 8) | rx_frame.data[4];
+          cell_voltages[battery_request_idx++] = (rx_frame.data[5] << 8) | rx_frame.data[6];
+          cell_voltages[battery_request_idx] = (rx_frame.data[7] << 8);
         }
       }
 
       if (group_7bb == 4) {                 //Temperatures
-        if (rx_frame.data.u8[0] == 0x10) {  //First message
-          temp_raw_1 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          temp_raw_2_highnibble = rx_frame.data.u8[7];
+        if (rx_frame.data[0] == 0x10) {  //First message
+          temp_raw_1 = (rx_frame.data[4] << 8) | rx_frame.data[5];
+          temp_raw_2_highnibble = rx_frame.data[7];
         }
-        if (rx_frame.data.u8[0] == 0x21) {  //Second message
-          temp_raw_2 = (temp_raw_2_highnibble << 8) | rx_frame.data.u8[1];
-          temp_raw_3 = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-          temp_raw_4 = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        if (rx_frame.data[0] == 0x21) {  //Second message
+          temp_raw_2 = (temp_raw_2_highnibble << 8) | rx_frame.data[1];
+          temp_raw_3 = (rx_frame.data[3] << 8) | rx_frame.data[4];
+          temp_raw_4 = (rx_frame.data[6] << 8) | rx_frame.data[7];
         }
-        if (rx_frame.data.u8[0] == 0x22) {  //Third message
+        if (rx_frame.data[0] == 0x22) {  //Third message
           //All values read, let's figure out the min/max!
 
           if (temp_raw_3 == 65535) {  //We are on a 2013+ pack that only has three temp sensors.
@@ -566,108 +552,108 @@ void send_can_battery() {
 
       switch (mprun10) {
         case 0:
-          LEAF_1D4.data.u8[4] = 0x07;
-          LEAF_1D4.data.u8[7] = 0x12;
+          LEAF_1D4.data[4] = 0x07;
+          LEAF_1D4.data[7] = 0x12;
           break;
         case 1:
-          LEAF_1D4.data.u8[4] = 0x47;
-          LEAF_1D4.data.u8[7] = 0xD5;
+          LEAF_1D4.data[4] = 0x47;
+          LEAF_1D4.data[7] = 0xD5;
           break;
         case 2:
-          LEAF_1D4.data.u8[4] = 0x87;
-          LEAF_1D4.data.u8[7] = 0x19;
+          LEAF_1D4.data[4] = 0x87;
+          LEAF_1D4.data[7] = 0x19;
           break;
         case 3:
-          LEAF_1D4.data.u8[4] = 0xC7;
-          LEAF_1D4.data.u8[7] = 0xDE;
+          LEAF_1D4.data[4] = 0xC7;
+          LEAF_1D4.data[7] = 0xDE;
           break;
       }
-      ESP32Can.CANWriteFrame(&LEAF_1D4);
+      ESP32Can.writeFrame(LEAF_1D4);
 
       switch (mprun10r) {
         case (0):
-          LEAF_1F2.data.u8[3] = 0xB0;
-          LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x8F;
+          LEAF_1F2.data[3] = 0xB0;
+          LEAF_1F2.data[6] = 0x00;
+          LEAF_1F2.data[7] = 0x8F;
           break;
         case (1):
-          LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x80;
+          LEAF_1F2.data[6] = 0x01;
+          LEAF_1F2.data[7] = 0x80;
           break;
         case (2):
-          LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x81;
+          LEAF_1F2.data[6] = 0x02;
+          LEAF_1F2.data[7] = 0x81;
           break;
         case (3):
-          LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x82;
+          LEAF_1F2.data[6] = 0x03;
+          LEAF_1F2.data[7] = 0x82;
           break;
         case (4):
-          LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x8F;
+          LEAF_1F2.data[6] = 0x00;
+          LEAF_1F2.data[7] = 0x8F;
           break;
         case (5):  // Set 2
-          LEAF_1F2.data.u8[3] = 0xB4;
-          LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x84;
+          LEAF_1F2.data[3] = 0xB4;
+          LEAF_1F2.data[6] = 0x01;
+          LEAF_1F2.data[7] = 0x84;
           break;
         case (6):
-          LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x85;
+          LEAF_1F2.data[6] = 0x02;
+          LEAF_1F2.data[7] = 0x85;
           break;
         case (7):
-          LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x86;
+          LEAF_1F2.data[6] = 0x03;
+          LEAF_1F2.data[7] = 0x86;
           break;
         case (8):
-          LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x83;
+          LEAF_1F2.data[6] = 0x00;
+          LEAF_1F2.data[7] = 0x83;
           break;
         case (9):
-          LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x84;
+          LEAF_1F2.data[6] = 0x01;
+          LEAF_1F2.data[7] = 0x84;
           break;
         case (10):  // Set 3
-          LEAF_1F2.data.u8[3] = 0xB0;
-          LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x81;
+          LEAF_1F2.data[3] = 0xB0;
+          LEAF_1F2.data[6] = 0x02;
+          LEAF_1F2.data[7] = 0x81;
           break;
         case (11):
-          LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x82;
+          LEAF_1F2.data[6] = 0x03;
+          LEAF_1F2.data[7] = 0x82;
           break;
         case (12):
-          LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x8F;
+          LEAF_1F2.data[6] = 0x00;
+          LEAF_1F2.data[7] = 0x8F;
           break;
         case (13):
-          LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x80;
+          LEAF_1F2.data[6] = 0x01;
+          LEAF_1F2.data[7] = 0x80;
           break;
         case (14):
-          LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x81;
+          LEAF_1F2.data[6] = 0x02;
+          LEAF_1F2.data[7] = 0x81;
           break;
         case (15):  // Set 4
-          LEAF_1F2.data.u8[3] = 0xB4;
-          LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x86;
+          LEAF_1F2.data[3] = 0xB4;
+          LEAF_1F2.data[6] = 0x03;
+          LEAF_1F2.data[7] = 0x86;
           break;
         case (16):
-          LEAF_1F2.data.u8[6] = 0x00;
-          LEAF_1F2.data.u8[7] = 0x83;
+          LEAF_1F2.data[6] = 0x00;
+          LEAF_1F2.data[7] = 0x83;
           break;
         case (17):
-          LEAF_1F2.data.u8[6] = 0x01;
-          LEAF_1F2.data.u8[7] = 0x84;
+          LEAF_1F2.data[6] = 0x01;
+          LEAF_1F2.data[7] = 0x84;
           break;
         case (18):
-          LEAF_1F2.data.u8[6] = 0x02;
-          LEAF_1F2.data.u8[7] = 0x85;
+          LEAF_1F2.data[6] = 0x02;
+          LEAF_1F2.data[7] = 0x85;
           break;
         case (19):
-          LEAF_1F2.data.u8[6] = 0x03;
-          LEAF_1F2.data.u8[7] = 0x86;
+          LEAF_1F2.data[6] = 0x03;
+          LEAF_1F2.data[7] = 0x86;
           break;
         default:
           break;
@@ -675,7 +661,7 @@ void send_can_battery() {
 
 //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
 #ifndef NISSANLEAF_CHARGER
-      ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
+      ESP32Can.writeFrame(LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
 #endif
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
@@ -689,34 +675,34 @@ void send_can_battery() {
 
       //When battery requests heating pack status change, ack this
       if (Batt_Heater_Mail_Send_Request) {
-        LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
+        LEAF_50B.data[6] = 0x20;  //Batt_Heater_Mail_Send_OK
       } else {
-        LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
+        LEAF_50B.data[6] = 0x00;  //Batt_Heater_Mail_Send_NG
       }
 
       // VCM message, containing info if battery should sleep or stay awake
-      ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+      ESP32Can.writeFrame(LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
-      LEAF_50C.data.u8[3] = mprun100;
+      LEAF_50C.data[3] = mprun100;
       switch (mprun100) {
         case 0:
-          LEAF_50C.data.u8[4] = 0x5D;
-          LEAF_50C.data.u8[5] = 0xC8;
+          LEAF_50C.data[4] = 0x5D;
+          LEAF_50C.data[5] = 0xC8;
           break;
         case 1:
-          LEAF_50C.data.u8[4] = 0xB2;
-          LEAF_50C.data.u8[5] = 0x31;
+          LEAF_50C.data[4] = 0xB2;
+          LEAF_50C.data[5] = 0x31;
           break;
         case 2:
-          LEAF_50C.data.u8[4] = 0x5D;
-          LEAF_50C.data.u8[5] = 0x63;
+          LEAF_50C.data[4] = 0x5D;
+          LEAF_50C.data[5] = 0x63;
           break;
         case 3:
-          LEAF_50C.data.u8[4] = 0xB2;
-          LEAF_50C.data.u8[5] = 0x9A;
+          LEAF_50C.data[4] = 0xB2;
+          LEAF_50C.data[5] = 0x9A;
           break;
       }
-      ESP32Can.CANWriteFrame(&LEAF_50C);
+      ESP32Can.writeFrame(LEAF_50C);
 
       mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
     }
@@ -729,8 +715,8 @@ void send_can_battery() {
       if (!stop_battery_query) {
         group = (group == 1) ? 2 : (group == 2) ? 4 : 1;
         // Cycle between group 1, 2, and 4 using ternary operation
-        LEAF_GROUP_REQUEST.data.u8[2] = group;
-        ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
+        LEAF_GROUP_REQUEST.data[2] = group;
+        ESP32Can.writeFrame(LEAF_GROUP_REQUEST);
       }
 
       if (hold_off_with_polling_10seconds > 0) {
@@ -742,12 +728,12 @@ void send_can_battery() {
   }
 }
 
-bool is_message_corrupt(CAN_frame_t rx_frame) {
+bool is_message_corrupt(twai_message_t rx_frame) {
   uint8_t crc = 0;
   for (uint8_t j = 0; j < 7; j++) {
-    crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+    crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data[j])) % 256];
   }
-  return crc != rx_frame.data.u8[7];
+  return crc != rx_frame.data[7];
 }
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrible, but apparently works well

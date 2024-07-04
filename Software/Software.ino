@@ -20,9 +20,7 @@
 #include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
-#include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#include "src/lib/smaresca-SimpleISA/SimpleISA.h"
+#include "src/lib/ESP32-TWAI-CAN/ESP32-TWAI-CAN.hpp"
 
 #include "src/datalayer/datalayer.h"
 
@@ -39,10 +37,6 @@ const char* version_number = "6.3.dev";
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
-
-// CAN parameters
-CAN_device_t CAN_cfg;          // CAN Config
-const int rx_queue_size = 10;  // Receive Queue size
 
 #ifdef DUAL_CAN
 #include "src/lib/pierremolinaro-acan2515/ACAN2515.h"
@@ -63,10 +57,6 @@ typedef char CANFDMessage;
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
-#endif
-
-#ifdef ISA_SHUNT
-ISA sensor;
 #endif
 
 // Common charger parameters
@@ -358,13 +348,7 @@ void init_CAN() {
   pinMode(CAN_SE_PIN, OUTPUT);
   digitalWrite(CAN_SE_PIN, LOW);
 #endif
-  CAN_cfg.speed = CAN_SPEED_500KBPS;
-  CAN_cfg.tx_pin_id = GPIO_NUM_27;
-  CAN_cfg.rx_pin_id = GPIO_NUM_26;
-  CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
-  // Init CAN Module
-  ESP32Can.CANInit();
-
+  ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX_PIN, CAN_RX_PIN, 10, 10);
 #ifdef DUAL_CAN
 #ifdef DEBUG_VIA_USB
   Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
@@ -519,13 +503,9 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
 
 void receive_can() {  // This section checks if we have a complete CAN message incoming
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
-  CAN_frame_t rx_frame;
-  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
+  CanFrame rx_frame;
+    if(ESP32Can.readFrame(rx_frame, 0)) {
 
-    //ISA Shunt
-#ifdef ISA_SHUNT
-    sensor.handleFrame(&rx_frame);
-#endif
     // Battery
 #ifndef SERIAL_LINK_RECEIVER  // Only needs to see inverter
     receive_can_battery(rx_frame);

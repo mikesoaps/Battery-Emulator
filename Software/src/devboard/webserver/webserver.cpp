@@ -330,7 +330,7 @@ void wifi_monitor() {
 
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
-    ESP32Can.CANInit();
+    ESP32Can.begin();
     clear_event(EVENT_OTA_UPDATE);
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
     ota_active = false;
@@ -687,7 +687,7 @@ String processor(const String& var) {
 
 void onOTAStart() {
   // Log when OTA has started
-  ESP32Can.CANStop();
+  ESP32Can.end();
   set_event(EVENT_OTA_UPDATE, 0);
 
   // If already set, make a new attempt
@@ -720,7 +720,7 @@ void onOTAEnd(bool success) {
 #endif
 
     // If we fail without a timeout, try to restore CAN
-    ESP32Can.CANInit();
+    ESP32Can.begin();
   }
   ota_active = false;
   clear_event(EVENT_OTA_UPDATE);
