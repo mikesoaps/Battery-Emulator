@@ -404,7 +404,7 @@ void receive_can_battery(twai_message_t rx_frame) {
         break;
       }
 
-      twai_transmit(&LEAF_NEXT_LINE_REQUEST,0);  //Request the next frame for the group
+      twai_transmit(&LEAF_NEXT_LINE_REQUEST,100);  //Request the next frame for the group
 
       if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
@@ -568,7 +568,7 @@ void send_can_battery() {
           LEAF_1D4.data[7] = 0xDE;
           break;
       }
-      twai_transmit(&LEAF_1D4,0);
+      twai_transmit(&LEAF_1D4,100);
 
       switch (mprun10r) {
         case (0):
@@ -661,7 +661,7 @@ void send_can_battery() {
 
 //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
 #ifndef NISSANLEAF_CHARGER
-      twai_transmit(&LEAF_1F2,0);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
+      twai_transmit(&LEAF_1F2,100);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
 #endif
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
@@ -681,7 +681,7 @@ void send_can_battery() {
       }
 
       // VCM message, containing info if battery should sleep or stay awake
-      twai_transmit(&LEAF_50B,0);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+      twai_transmit(&LEAF_50B,100);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
       LEAF_50C.data[3] = mprun100;
       switch (mprun100) {
@@ -702,7 +702,7 @@ void send_can_battery() {
           LEAF_50C.data[5] = 0x9A;
           break;
       }
-      twai_transmit(&LEAF_50C, 0);
+      twai_transmit(&LEAF_50C, 100);
 
       mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
     }
@@ -716,7 +716,7 @@ void send_can_battery() {
         group = (group == 1) ? 2 : (group == 2) ? 4 : 1;
         // Cycle between group 1, 2, and 4 using ternary operation
         LEAF_GROUP_REQUEST.data[2] = group;
-        twai_transmit(&LEAF_GROUP_REQUEST, 0);
+        twai_transmit(&LEAF_GROUP_REQUEST, 100);
         //ESP32Can.writeFrame(LEAF_GROUP_REQUEST);
       }
 
