@@ -11,7 +11,7 @@
 #endif
 #include "../../lib/me-no-dev-AsyncTCP/src/AsyncTCP.h"
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
-#include "../../lib/ESP32-TWAI-CAN/ESP32-TWAI-CAN.hpp"
+#include "driver/twai.h"
 #ifdef MQTT
 #include "../mqtt/mqtt.h"
 #endif

@@ -74,7 +74,7 @@
 #ifdef SERIAL_LINK_RECEIVER  // The serial thing does its thing
 void receive_can_battery();
 #else
-#include "../lib/ESP32-TWAI-CAN/ESP32-TWAI-CAN.hpp" // This include is annoying, consider defining a frame type in types.h
+#include "driver/twai.h" // This include is annoying, consider defining a frame type in types.h
 void receive_can_battery(twai_message_t rx_frame);
 #endif
 #ifdef CAN_FD

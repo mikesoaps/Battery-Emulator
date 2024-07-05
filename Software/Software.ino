@@ -8,6 +8,9 @@
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
+#include "esp_err.h"
+#include "driver/gpio.h"
+#include "driver/twai.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "src/charger/CHARGERS.h"
@@ -20,7 +23,6 @@
 #include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
-#include "src/lib/ESP32-TWAI-CAN/ESP32-TWAI-CAN.hpp"
 
 #include "src/datalayer/datalayer.h"
 
@@ -37,7 +39,7 @@ const char* version_number = "6.3.dev";
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
-
+    
 #ifdef DUAL_CAN
 #include "src/lib/pierremolinaro-acan2515/ACAN2515.h"
 static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL;  // 8 MHz
@@ -348,7 +350,26 @@ void init_CAN() {
   pinMode(CAN_SE_PIN, OUTPUT);
   digitalWrite(CAN_SE_PIN, LOW);
 #endif
-  ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX_PIN, CAN_RX_PIN, 10, 10);
+
+    //Initialize configuration structures using macro initializers
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_PIN, CAN_RX_PIN, TWAI_MODE_NORMAL);
+    twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
+    twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+
+    esp_err_t res;
+    if ((res = twai_driver_install(&g_config, &t_config, &f_config)) == ESP_OK) {
+        printf("Driver installed\n");
+    } else {
+        printf("Failed to install driver: %s\n", esp_err_to_name(res));
+        return;
+    }
+    //Start TWAI driver
+    if ((res = twai_start()) == ESP_OK) {
+        printf("Driver started\n");
+    } else {
+        printf("Failed to start driver: %s\n", esp_err_to_name(res));
+        return;
+    }
 #ifdef DUAL_CAN
 #ifdef DEBUG_VIA_USB
   Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
@@ -503,8 +524,11 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
 
 void receive_can() {  // This section checks if we have a complete CAN message incoming
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
-  CanFrame rx_frame;
-    if(ESP32Can.readFrame(rx_frame, 0)) {
+  twai_message_t rx_frame;
+  twai_status_info_t status;
+  twai_get_status_info(&status);
+ if (twai_receive(&rx_frame, pdMS_TO_TICKS(1)) == ESP_OK)
+    {
 
     // Battery
 #ifndef SERIAL_LINK_RECEIVER  // Only needs to see inverter

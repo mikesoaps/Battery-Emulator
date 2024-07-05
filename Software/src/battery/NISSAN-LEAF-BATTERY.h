@@ -3,7 +3,7 @@
 
 #include "../include.h"
 
-#include "../lib/ESP32-TWAI-CAN/ESP32-TWAI-CAN.hpp"
+#include "driver/twai.h"
 
 #define BATTERY_SELECTED
 #define MAX_CELL_DEVIATION_MV 500

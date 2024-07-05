@@ -1,7 +1,7 @@
 #ifndef CHARGERS_H
 #define CHARGERS_H
 #include "../../USER_SETTINGS.h"
-#include "../lib/ESP32-TWAI-CAN/ESP32-TWAI-CAN.hpp"  // This include is annoying, consider defining a frame type in types.h
+#include "driver/twai.h"  // This include is annoying, consider defining a frame type in types.h
 
 #ifdef CHEVYVOLT_CHARGER
 #include "CHEVY-VOLT-CHARGER.h"
