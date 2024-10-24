@@ -60,6 +60,7 @@ String events_processor(const String& var) {
     return content;
     return String();
   }
+  return String();
 }
 
 /* Script for displaying event log before it gets minified

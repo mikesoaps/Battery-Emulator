@@ -5,10 +5,10 @@
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
-#include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
+#include "ArduinoJson.h"
 
 WiFiClient espClient;
 PubSubClient client(espClient);

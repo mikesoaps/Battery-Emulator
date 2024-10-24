@@ -3,6 +3,7 @@
 
 #include "src/include.h"
 
+#include "ArduinoJson.h"
 #include "HardwareSerial.h"
 #include "USER_SETTINGS.h"
 #include "esp_system.h"
@@ -17,7 +18,6 @@
 #include "src/devboard/utils/value_mapping.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
-#include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
@@ -111,6 +111,24 @@ MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
 MyTimer check_pause_2s(INTERVAL_2_S);
+
+void update_scaled_values();
+void init_serial();
+void init_CAN();
+void init_contactors();
+void init_rs485();
+void init_serialDataLink();
+void init_inverter();
+void init_battery();
+void send_can();
+void init_stored_settings();
+void update_values_inverter();
+void receive_can_native();
+void handle_contactors();
+void connectivity_loop(void* task_time_us);
+void core_loop(void* task_time_us);
+void receive_can(CAN_frame* rx_frame, int interface);
+void check_reset_reason();
 
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
@@ -406,7 +424,7 @@ void init_stored_settings() {
     datalayer.battery.info.max_discharge_amp_dA = temp;
     temp = settings.getBool("USE_SCALED_SOC", false);
     datalayer.battery.settings.soc_scaling_active = temp;  //This bool needs to be checked inside the temp!= block
-  }                                                        // No way to know if it wasnt reset otherwise
+  }  // No way to know if it wasnt reset otherwise
 
   settings.end();
 }

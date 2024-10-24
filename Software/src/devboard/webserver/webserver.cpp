@@ -1,10 +1,10 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include "../../datalayer/datalayer.h"
-#include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
+#include "ArduinoJson.h"
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -27,50 +27,50 @@ void init_webserver() {
 
   String content = index_html;
 
-  server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
+  server.on("/logout", 1, [](AsyncWebServerRequest* request) { request->send(401); });
 
   // Route for firmware info from ota update page
-  server.on("/GetFirmwareInfo", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/GetFirmwareInfo", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send_P(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
   });
 
   // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send_P(200, "text/html", index_html, processor);
   });
 
   // Route for going to settings web page
-  server.on("/settings", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/settings", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send_P(200, "text/html", index_html, settings_processor);
   });
 
   // Route for going to advanced battery info web page
-  server.on("/advanced", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/advanced", 1, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/html", index_html, advanced_battery_processor);
   });
 
   // Route for going to cellmonitor web page
-  server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/cellmonitor", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send_P(200, "text/html", index_html, cellmonitor_processor);
   });
 
   // Route for going to event log web page
-  server.on("/events", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/events", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send_P(200, "text/html", index_html, events_processor);
   });
 
   // Route for clearing all events
-  server.on("/clearevents", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/clearevents", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     reset_all_events();
@@ -82,7 +82,7 @@ void init_webserver() {
   });
 
   // Route for editing SSID
-  server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateSSID", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
 
@@ -100,7 +100,7 @@ void init_webserver() {
     }
   });
   // Route for editing Password
-  server.on("/updatePassword", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updatePassword", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -118,7 +118,7 @@ void init_webserver() {
   });
 
   // Route for editing Wh
-  server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateBatterySize", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -132,7 +132,7 @@ void init_webserver() {
   });
 
   // Route for editing USE_SCALED_SOC
-  server.on("/updateUseScaledSOC", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateUseScaledSOC", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -146,7 +146,7 @@ void init_webserver() {
   });
 
   // Route for editing SOCMax
-  server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateSocMax", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -160,7 +160,7 @@ void init_webserver() {
   });
 
   // Route for pause/resume Battery emulator
-  server.on("/pause", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/pause", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("p")) {
@@ -173,7 +173,7 @@ void init_webserver() {
   });
 
   // Route for equipment stop/resume
-  server.on("/equipmentStop", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/equipmentStop", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("stop")) {
@@ -190,7 +190,7 @@ void init_webserver() {
   });
 
   // Route for editing SOCMin
-  server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateSocMin", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -204,7 +204,7 @@ void init_webserver() {
   });
 
   // Route for editing MaxChargeA
-  server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateMaxChargeA", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -218,7 +218,7 @@ void init_webserver() {
   });
 
   // Route for editing MaxDischargeA
-  server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateMaxDischargeA", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -233,7 +233,7 @@ void init_webserver() {
 
 #ifdef TEST_FAKE_BATTERY
   // Route for editing FakeBatteryVoltage
-  server.on("/updateFakeBatteryVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateFakeBatteryVoltage", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (!request->hasParam("value")) {
@@ -251,7 +251,7 @@ void init_webserver() {
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
   // Route for editing ChargerTargetV
-  server.on("/updateChargeSetpointV", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateChargeSetpointV", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (!request->hasParam("value")) {
@@ -275,7 +275,7 @@ void init_webserver() {
   });
 
   // Route for editing ChargerTargetA
-  server.on("/updateChargeSetpointA", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateChargeSetpointA", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (!request->hasParam("value")) {
@@ -299,7 +299,7 @@ void init_webserver() {
   });
 
   // Route for editing ChargerEndA
-  server.on("/updateChargeEndA", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateChargeEndA", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -312,7 +312,7 @@ void init_webserver() {
   });
 
   // Route for enabling/disabling HV charger
-  server.on("/updateChargerHvEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateChargerHvEnabled", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -325,7 +325,7 @@ void init_webserver() {
   });
 
   // Route for enabling/disabling aux12v charger
-  server.on("/updateChargerAux12vEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateChargerAux12vEnabled", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("value")) {
@@ -339,14 +339,14 @@ void init_webserver() {
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
   // Send a GET request to <ESP_IP>/update
-  server.on("/debug", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/debug", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send(200, "text/plain", "Debug: all OK.");
   });
 
   // Route to handle reboot command
-  server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/reboot", 1, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send(200, "text/plain", "Rebooting server...");
